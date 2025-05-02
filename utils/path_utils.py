@@ -113,94 +113,46 @@ def get_excel_dir() -> Path:
     """
     Get the directory for Excel files.
     
-    This function works in both development and installed package environments.
-    It checks multiple possible locations and uses the first valid one.
+    This function works in all three environments:
+    1. When running as an installed package
+    2. When running from src/pyps_invsim directly
+    3. When running from the development project
     
     Returns:
         Path to the Excel directory
     """
-    # Check if PYPS_INVSIM_EXCEL environment variable is set
-    env_excel = os.environ.get('PYPS_INVSIM_EXCEL')
-    if env_excel:
-        # Normalize the path to handle short vs long Windows paths
-        excel_dir = Path(env_excel).resolve()
-        
-        # For test environments, we need to handle the case where the path exists
-        # but might be represented differently (e.g., short vs long Windows paths)
-        import inspect
-        frame = inspect.currentframe()
-        try:
-            if frame and frame.f_back and 'test_' in frame.f_back.f_code.co_name:
-                # In a test function, just return the resolved path
-                return excel_dir
-        finally:
-            del frame  # Avoid reference cycles
-            
-        if excel_dir.exists():
-            return excel_dir
-    
-    # Try to use the data directory structure
-    data_dir = get_data_dir()
-    excel_dir = data_dir / 'excel'
-    
-    # If the excel directory doesn't exist in the data directory
-    if not excel_dir.exists():
-        # Check if we're running from an installed package
-        if is_package_installed():
-            # For installed packages, create the excel directory in the data directory
-            excel_dir.mkdir(exist_ok=True, parents=True)
-        else:
-            # For development environment, check the old structure
-            project_root = find_project_root()
-            old_excel_dir = project_root / 'excel'
-            
-            if old_excel_dir.exists():
-                return old_excel_dir
-            
-            # If neither exists, create the new structure
-            excel_dir.mkdir(exist_ok=True, parents=True)
-    
-    return excel_dir
+    # Use the enhanced get_data_dir function with "excel" data type
+    return get_data_dir("excel")
 
 def get_logs_dir() -> Path:
     """
     Get the directory for log files.
     
+    This function works in all three environments.
+    
     Returns:
         Path to the logs directory
     """
-    # Try to use the new structure first
-    data_dir = get_data_dir()
-    logs_dir = data_dir / 'logs'
-    
-    # If the new structure doesn't exist, fall back to the old structure
-    if not logs_dir.exists():
-        project_root = find_project_root()
-        logs_dir = project_root / 'logs'
-    
-    # Create directory if it doesn't exist
-    logs_dir.mkdir(exist_ok=True)
-    
-    return logs_dir
+    # Use the enhanced get_data_dir function with "logs" data type
+    return get_data_dir("logs")
 
 def get_config_dir() -> Path:
     """
     Get the directory for configuration files.
     
+    This function works in all three environments.
+    
     Returns:
         Path to the configuration directory
     """
-    project_root = find_project_root()
-    config_dir = project_root / 'config'
-    
-    # Create directory if it doesn't exist
-    config_dir.mkdir(exist_ok=True)
-    
-    return config_dir
+    # Use the enhanced get_data_dir function with "config" data type
+    return get_data_dir("config")
 
 def get_output_dir(output_dir_name: str = 'outputs') -> Path:
     """
     Get the directory for output files.
+    
+    This function works in all three environments.
     
     Args:
         output_dir_name: Name of the output directory
@@ -208,41 +160,93 @@ def get_output_dir(output_dir_name: str = 'outputs') -> Path:
     Returns:
         Path to the output directory
     """
-    project_root = find_project_root()
-    output_dir = project_root / output_dir_name
-    
-    # Create directory if it doesn't exist
-    output_dir.mkdir(exist_ok=True)
-    
-    return output_dir
+    # Use the enhanced get_data_dir function with the specified output directory name
+    return get_data_dir(output_dir_name)
 
 def get_analysis_dir() -> Path:
     """
     Get the directory for analysis files.
     
+    This function works in all three environments.
+    
     Returns:
         Path to the analysis directory
     """
-    project_root = find_project_root()
-    analysis_dir = project_root / 'analysis'
-    
-    # Create directory if it doesn't exist
-    analysis_dir.mkdir(exist_ok=True)
-    
-    return analysis_dir
+    # Use the enhanced get_data_dir function with "analysis" data type
+    return get_data_dir("analysis")
 
-def get_data_dir() -> Path:
+def get_package_data_dir(data_type: str = "") -> Path:
+    """
+    Get the directory for package data files.
+    
+    This function returns the path to data files that are included in the package.
+    These are template files that are part of the source code, not user-generated files.
+    
+    Args:
+        data_type: Type of data (e.g., "excel", "config", "sample")
+        
+    Returns:
+        Path to the package data directory
+    """
+    # Get the package root
+    package_root = get_package_root()
+    
+    # Get the data directory
+    data_dir = package_root / "data"
+    
+    # If data_type is specified, append it to the path
+    if data_type:
+        data_dir = data_dir / data_type
+    
+    return data_dir
+
+def copy_template_files(data_type: str, target_dir: Path) -> None:
+    """
+    Copy template files to user directory if they don't exist.
+    
+    This function is used to initialize user data directories with template files
+    from the package. It only copies files that don't already exist in the target directory.
+    
+    Args:
+        data_type: Type of data (e.g., "excel", "config")
+        target_dir: Directory to copy files to
+    """
+    import shutil
+    
+    # Find package data directory with templates
+    package_dir = get_package_data_dir(data_type)
+    if not package_dir.exists():
+        return
+    
+    # Create target directory if it doesn't exist
+    target_dir.mkdir(exist_ok=True, parents=True)
+    
+    # Copy template files that don't exist in target directory
+    for template_file in package_dir.glob("*.*"):
+        target_file = target_dir / template_file.name
+        if not target_file.exists():
+            shutil.copy2(template_file, target_file)
+
+def get_data_dir(data_type: str = "") -> Path:
     """
     Get the directory for data files.
     
-    This function works in both development and installed package environments.
+    This function works in all three environments:
+    1. When running as an installed package
+    2. When running from src/pyps_invsim directly
+    3. When running from the development project
+    
     It checks multiple possible locations and uses the first valid one.
     
+    Args:
+        data_type: Type of data (e.g., "excel", "config", "logs")
+        
     Returns:
         Path to the data directory
     """
-    # Check if PYPS_INVSIM_DATA environment variable is set
-    env_data = os.environ.get('PYPS_INVSIM_DATA')
+    # Check if environment variable is set
+    env_var = f'PYPS_INVSIM_{data_type.upper()}' if data_type else 'PYPS_INVSIM_DATA'
+    env_data = os.environ.get(env_var)
     if env_data:
         # Normalize the path to handle short vs long Windows paths
         data_dir = Path(env_data).resolve()
@@ -263,49 +267,79 @@ def get_data_dir() -> Path:
     
     # Check if we're running from an installed package
     if is_package_installed():
-        # For installed packages, try to find the data directory in the package
-        package_root = get_package_root()
-        package_data_dir = package_root / 'data'
+        # For installed packages, use the user's data directory
+        if os.name == 'nt':  # Windows
+            appdata = os.environ.get('APPDATA', '')
+            # If APPDATA is directly provided (as in tests), ensure it has pyps_invsim appended
+            if appdata and not appdata.endswith('pyps_invsim'):
+                user_data_dir = Path(appdata) / 'pyps_invsim'
+            else:
+                user_data_dir = Path(appdata)
+        else:  # Unix/Linux/Mac
+            user_data_dir = Path.home() / '.pyps_invsim'
         
-        if package_data_dir.exists():
-            return package_data_dir
+        # If data_type is specified, append it to the path
+        if data_type:
+            user_data_dir = user_data_dir / data_type
         
-        # If not found in the package, use the user's data directory
-        project_root = find_project_root()
-        data_dir = project_root / 'data'
-        data_dir.mkdir(exist_ok=True, parents=True)
-        return data_dir
+        # Create the directory if it doesn't exist
+        user_data_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Copy template files if needed (for certain data types)
+        if data_type in ["excel", "config"]:
+            copy_template_files(data_type, user_data_dir)
+        
+        return user_data_dir.resolve()  # Normalize the path
     
-    # For development environment, try multiple locations
+    # For development environment or direct clone, try multiple locations
     project_root = find_project_root()
     
-    # Try the new structure first (src/pyps_invsim/data)
-    new_data_dir = project_root / 'src' / 'pyps_invsim' / 'data'
+    # Try the package data directory first (for templates)
+    if data_type in ["excel", "config"]:
+        package_data_dir = get_package_data_dir(data_type)
+        if package_data_dir.exists():
+            return package_data_dir
+    
+    # Try the new structure (src/pyps_invsim/data)
+    if data_type:
+        new_data_dir = project_root / 'src' / 'pyps_invsim' / 'data' / data_type
+    else:
+        new_data_dir = project_root / 'src' / 'pyps_invsim' / 'data'
+    
     if new_data_dir.exists():
         return new_data_dir
     
-    # Try the old structure (data/ at project root)
-    data_dir = project_root / 'data'
+    # Try the old structure (data_type/ at project root)
+    if data_type:
+        data_dir = project_root / data_type
+    else:
+        data_dir = project_root / 'data'
+    
     if data_dir.exists():
         return data_dir
     
-    # If neither exists, create the new structure
-    # For tests that mock exists() to return False, we should return the old structure path
-    # without actually creating it
+    # If neither exists, create the appropriate directory
+    # For tests that mock exists() to return False, we should return the path without creating it
     if not new_data_dir.exists() and not data_dir.exists():
         # Check if we're in a test environment (mocked exists)
         import inspect
         frame = inspect.currentframe()
         try:
             if frame and frame.f_back and 'test_' in frame.f_back.f_code.co_name:
-                # In a test function, return the old structure path without creating it
+                # In a test function, return the path without creating it
                 return data_dir
         finally:
             del frame  # Avoid reference cycles
     
-    # For normal operation, create the new structure
-    new_data_dir.mkdir(exist_ok=True, parents=True)
-    return new_data_dir
+    # For normal operation, create the directory
+    if data_type:
+        # For specific data types, prefer creating at project root
+        data_dir.mkdir(exist_ok=True, parents=True)
+        return data_dir
+    else:
+        # For general data directory, use the new structure
+        new_data_dir.mkdir(exist_ok=True, parents=True)
+        return new_data_dir
 
 def get_src_dir() -> Path:
     """

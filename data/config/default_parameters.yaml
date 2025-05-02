@@ -1,0 +1,30 @@
+# Default parameters for inventory simulation
+# These parameters will be used if no custom parameters are provided
+
+# Inventory parameters
+inventory:
+  initial_inventory: 100
+  reorder_point: 20
+  reorder_quantity: 50
+  safety_stock: 10
+  max_inventory: 200
+
+# Demand parameters
+demand:
+  mean: 10
+  std_dev: 2
+  seasonality_factor: 0.2
+  trend_factor: 0.1
+  noise_weight: 0.3
+
+# Supply parameters
+supply:
+  lead_time_mean: 3
+  lead_time_std_dev: 1
+  reliability: 0.95
+
+# Simulation parameters
+simulation:
+  periods: 52
+  scenarios: 10
+  random_seed: 42

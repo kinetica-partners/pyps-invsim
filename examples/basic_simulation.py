@@ -1,117 +1,105 @@
 """
-Basic example of running an inventory simulation with PyPS InvSim.
+Example script for running a basic simulation.
+
+This script demonstrates how to use the PyPS-InvSim package in different environments:
+1. When running as an installed package
+2. When running from src/pyps_invsim directly
+3. When running from the development project
 """
 import os
 import sys
-import yaml
 from pathlib import Path
 
+# Add the parent directory to the path
+current_dir = Path(__file__).resolve().parent
+parent_dir = current_dir.parent
+
+# Try to import the import helper
 try:
-    # Try importing directly (works when package is installed)
-    from pyps_invsim.simulations import run_inventory_simulation
-    from pyps_invsim.utils.config_utils import load_simulation_parameters
-    from pyps_invsim.utils.path_utils import get_config_dir
+    # If running from the package
+    from pyps_invsim.utils.import_helper import setup_imports
+    setup_imports()
 except ImportError:
-    # If that fails, try adding the parent directory to the path
-    # (works when running from the source directory)
-    parent_dir = str(Path(__file__).parent.parent.parent)
-    if parent_dir not in sys.path:
-        sys.path.insert(0, parent_dir)
-    
-    # Now try importing again
-    from pyps_invsim.simulations import run_inventory_simulation
-    from pyps_invsim.utils.config_utils import load_simulation_parameters
-    from pyps_invsim.utils.path_utils import get_config_dir
+    # If running from the source directory
+    sys.path.insert(0, str(parent_dir))
+    from pyps_invsim.utils.import_helper import setup_imports
+    setup_imports()
+
+# Now import the rest of the modules
+from pyps_invsim.simulations.level1_inventory_simulation import run_simulation
+from pyps_invsim.utils.path_utils import get_data_dir, get_config_dir, get_logs_dir
+from pyps_invsim.logging.simulation_logger import LoggingLevel
 
 def main():
     """Run a basic inventory simulation."""
-    # Load default parameters
+    print("PyPS-InvSim Basic Simulation Example")
+    print("====================================")
+    
+    # Print the paths to demonstrate they work in all environments
+    print(f"Config directory: {get_config_dir()}")
+    print(f"Logs directory: {get_logs_dir()}")
+    print(f"Data directory: {get_data_dir()}")
+    print(f"Sample directory: {get_data_dir('sample')}")
+    
+    # Load parameters from the default config file
     config_dir = get_config_dir()
-    default_params_file = os.path.join(config_dir, "default_parameters.yaml")
+    config_file = config_dir / "default_parameters.yaml"
     
-    # If the default parameters file doesn't exist, create a simple one
-    if not os.path.exists(default_params_file):
-        # Create the config directory if it doesn't exist
-        os.makedirs(config_dir, exist_ok=True)
-        
-        # Create a simple parameters file
-        params = {
-            "simulation": {
-                "num_periods": 365,
-                "num_scenarios": 1,
-                "random_seed": 42
-            },
-            "inventory": {
-                "initial_inventory": 100,
-                "reorder_point": 50,
-                "order_quantity": 100,
-                "max_inventory": 200
-            },
-            "demand": {
-                "mean": 10,
-                "std_dev": 2,
-                "seasonality": False,
-                "trend": False
-            },
-            "supply": {
-                "lead_time_mean": 7,
-                "lead_time_std_dev": 1
-            }
-        }
-        
-        # Write the parameters to the file
-        with open(default_params_file, "w") as f:
-            yaml.dump(params, f, default_flow_style=False)
-        
-        print(f"Created default parameters file at {default_params_file}")
+    if config_file.exists():
+        print(f"Using configuration from: {config_file}")
+    else:
+        print(f"Configuration file not found: {config_file}")
+        print("Using default parameters")
     
-    # Load the parameters
-    params = load_simulation_parameters(default_params_file)
+    # Run a simple simulation
+    print("\nRunning simulation...")
+    # Create a parameters dictionary
+    simulation_params = {
+        'num_periods': 26,
+        'start_inventory': 100,
+        'reorder_point': 20,
+        'reorder_quantity': 50
+    }
     
     # Run the simulation
-    results = run_inventory_simulation(params)
+    results = run_simulation(
+        params=simulation_params,
+        num_scenarios=1,
+        logging_level=LoggingLevel.LAST_RUN
+    )
     
-    # Calculate summary statistics from the results
-    # The results are a list of scenario results
-    avg_inventory_levels = []
-    service_levels = []
-    num_orders_list = []
-    total_demand_list = []
+    # Process and print some results
+    print("\nSimulation Results:")
     
-    for scenario in results:
-        # Extract inventory levels
-        inventory_levels = [period.get('inventory_level', 0) for period in scenario.get('periods', [])]
-        avg_inventory_level = sum(inventory_levels) / len(inventory_levels) if inventory_levels else 0
-        avg_inventory_levels.append(avg_inventory_level)
+    # Extract data from the first scenario
+    if results and len(results) > 0:
+        scenario = results[0]
         
-        # Extract service level
-        stockouts = sum(1 for period in scenario.get('periods', []) if period.get('stockout', False))
-        total_periods = len(scenario.get('periods', []))
-        service_level = 1 - (stockouts / total_periods) if total_periods > 0 else 0
-        service_levels.append(service_level)
+        # Calculate average inventory
+        inventory_history = scenario.get('inventory', [])
+        avg_inventory = sum(inventory_history) / len(inventory_history) if inventory_history else 0
         
-        # Extract number of orders
-        num_orders = len(scenario.get('order_history', []))
-        num_orders_list.append(num_orders)
+        # Calculate service level (percentage of periods without stockout)
+        stockouts = sum(1 for inv in inventory_history if inv <= 0)
+        service_level = 1.0 - (stockouts / len(inventory_history)) if inventory_history else 0
         
-        # Extract total demand
-        total_demand = sum(period.get('demand', 0) for period in scenario.get('periods', []))
-        total_demand_list.append(total_demand)
+        # Print results
+        print(f"Average inventory level: {avg_inventory:.2f}")
+        print(f"Service level: {service_level:.2%}")
+        print(f"Final inventory: {scenario.get('final_inventory', 0)}")
+        
+        # Print timing information
+        timing = scenario.get('timing', {})
+        if timing:
+            print("\nTiming Information:")
+            for component, time_spent in timing.items():
+                print(f"  {component}: {time_spent:.4f}s")
+    else:
+        print("No simulation results available.")
     
-    # Calculate averages across all scenarios
-    avg_inventory_level = sum(avg_inventory_levels) / len(avg_inventory_levels) if avg_inventory_levels else 0
-    avg_service_level = sum(service_levels) / len(service_levels) if service_levels else 0
-    avg_num_orders = sum(num_orders_list) / len(num_orders_list) if num_orders_list else 0
-    avg_total_demand = sum(total_demand_list) / len(total_demand_list) if total_demand_list else 0
-    
-    # Print summary results
-    print("\nSimulation Results (averaged across all scenarios):")
-    print(f"Average Inventory Level: {avg_inventory_level:.2f}")
-    print(f"Service Level: {avg_service_level:.2%}")
-    print(f"Average Number of Orders: {avg_num_orders:.2f}")
-    print(f"Average Total Demand: {avg_total_demand:.2f}")
-    
-    return results
+    # Save results to logs directory
+    logs_dir = get_logs_dir()
+    print(f"\nResults saved to: {logs_dir}")
 
 if __name__ == "__main__":
     main()

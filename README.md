@@ -4,6 +4,23 @@ A Python package for inventory simulation.
 
 ## Installation
 
+> **Important:** Before installation, make sure to:
+> 1. Close any open Excel files related to this project
+> 2. Set up a virtual environment to avoid dependency conflicts
+
+### Setting up a Virtual Environment
+
+```bash
+# Using Python's built-in venv module
+python -m venv venv
+
+# Activate the virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
 ### Option 1: Install from GitHub
 
 You can install the package directly from GitHub:
@@ -31,11 +48,7 @@ pip install -e .
 4. Install the requirements:
 
 ```bash
-# Using Bash
-cd pyps-invsim
-pip install -r requirements.txt
-
-# Using PowerShell
+# Using Bash or PowerShell
 cd pyps-invsim
 pip install -r requirements.txt
 ```
@@ -50,16 +63,16 @@ The package requires the following dependencies:
 - pandas>=2.2.3
 - pyyaml>=6.0.2
 - scipy>=1.15.2
+- xlwings>=0.33.13 (for Excel integration)
 
 You can install all dependencies using the requirements.txt file:
 
 ```bash
-# Using Bash
+# Using Bash or PowerShell
 pip install -r requirements.txt
-
-# Using PowerShell
-pip install -r \requirements.txt
 ```
+
+> **Note:** xlwings is required for Excel integration features. If you encounter issues with Excel files, make sure all Excel files are closed before running the installation or the application.
 
 ## Usage
 

@@ -9,6 +9,11 @@ from pathlib import Path
 import datetime
 import xlwings as xw
 
+# Setup imports to work both as package and standalone project
+from pyps_invsim.utils.import_helper import setup_imports
+setup_imports()
+
+# Now imports will work both when running as a package and as a standalone project
 from pyps_invsim.core.demand import generate_demand
 from pyps_invsim.core.supply import generate_lead_time, calculate_supply_due_date, generate_supply_orders
 from pyps_invsim.core.inventory import (
